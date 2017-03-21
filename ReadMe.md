@@ -136,7 +136,7 @@ for stepNum in range(100000):
 stepNum = 99990 [ 1.00010967] [ 1.99988365] [ 3.00002098]
 ```
 
-
+而且我们发现16000次左右这个拟合的值就不变化了，我觉得是`tf.train.GradientDescentOptimizer()`形参值还是太大了导致的
 
 
 
