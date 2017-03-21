@@ -4,7 +4,7 @@
 
 为了初步了解TensorFlow的使用我先根据对tensorflow最基本的了解来写一个Demo，进行函数的拟合。然后再去看看Tensorflow Serving的事情。
 
-我在Mac和Linux上面都进行了TensorFlow的安装。在Linux下还比较正常，但是在Mac下面因为“six”这个库的版本过低导致报了一些错。我升级了six这个模块，好像就好了。
+我在Mac和Linux上面都进行了TensorFlow的安装。在Linux下还比较正常，但是在Mac下面因为“six”这个模块的版本过低导致报了一些错。我升级了six这个模块，好像就好了。
 
 ```shell
 sudo easy_install -U six
@@ -137,6 +137,187 @@ stepNum = 99990 [ 1.00010967] [ 1.99988365] [ 3.00002098]
 ```
 
 而且我们发现16000次左右这个拟合的值就不变化了，我觉得是`tf.train.GradientDescentOptimizer()`形参值还是太大了导致的。
+
+
+
+
+
+
+
+## 在Linux虚拟机中进行TensorFlow serving的安装
+
+TensorFlow Serving是一个为机器学习模型服务器的开源软件。他应该是一个CS结构的东西，我们可以将一个已经训练好的机器学习模型放到server端，然后提供服务器。在我看来，TensorFlow Serving提供比较好的版本管理。我们可以在同一时间在Server上使用不同的Model，甚至不同版本的相同Model。总之我觉得是一个Model的部署平台。
+
+### TensorFlow Serving的安装
+
+我们根据[TensorFlow Serving Install](https://github.com/tensorflow/serving/blob/master/tensorflow_serving/g3doc/setup.md)提供的内容来进行TensorFlow Serving Install的安装。TensorFlow应该使用的是编译安装的方式。
+
+首先我们需要安装Bazel，这个东西的作用类似于cmake，是一种构建工具。我们首先先下载这个玩意[[下载链接](https://github-cloud.s3.amazonaws.com/releases/20773773/08e8cd6a-0a52-11e7-8fb2-128a1bec9d0a.sh?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAISTNZFOVBIJMK3TQ%2F20170321%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20170321T061725Z&X-Amz-Expires=300&X-Amz-Signature=27dccdbec04e8e954b103228303597ef15762e52efcc6c19f36807fe8029a4dc&X-Amz-SignedHeaders=host&actor_id=12743988&response-content-disposition=attachment%3B%20filename%3Dbazel-0.4.5-installer-linux-x86_64.sh&response-content-type=application%2Foctet-stream)]。第一安装发现没有Java环境，好吧，醉了。我们将JDK放在/usr/local下，并且设定好了环境变量。然后我们再执行Bazel的安装脚本，完成安装：
+
+```shell
+zhendu@ubuntu:~/Desktop$ ./bazel-0.4.5-installer-linux-x86_64.sh --user
+Bazel installer
+---------------
+
+Bazel is bundled with software licensed under the GPLv2 with Classpath exception.
+You can find the sources next to the installer on our release page:
+   https://github.com/bazelbuild/bazel/releases
+
+# Release 0.4.5 (2017-03-16)
+
+Baseline: 2e689c29d5fc8a747216563235e905b1b62d63b0
+
+Cherry picks:
+   + a28b54033227d930672ec7f2714de52e5e0a67eb:
+     Fix Cpp action caching
+   + 6d1d424b4c0da724e20e14235de8012f05c470f8:
+     Fix paths of binaries in .deb packages.
+   + 0785cbb672357d950e0c045770c4567df9fbdc43:
+     Update to guava 21.0 and Error Prone version 2.0.18-20160224
+   + 30490512eb0e48a3774cc4e4ef78680e77dd4e47:
+     Update to latest javac and Error Prone
+   + 867d16eab3bfabae070567ecd878c291978ff338:
+     Allow ' ', '(', ')' and '$' in labels
+   + 7b295d34f3a4f42c13aafc1cc8afba3cb4aa2985:
+     Pass through -sourcepath to the JavaBuilder
+   + 14e4755ce554cdfc685fc9cc2bfb5b699a3b48f4:
+     PathFragment comparisons are now platform-aware
+   + ed7795234ca7ccd2567007f2c502f853cd947e50:
+     Flag to import external repositories in python import path
+   + 81ae08bbc13f5f4a04f18caae339ca77ae2699c1:
+     Suppress error for non-exhaustive switches
+   + e8d1177eef9a9798d2b971630b8cea59471eec33:
+     Correctly returns null if an environment variables is missing
+   + 869d52f145c077e3499b88df752cebc60af51d66:
+     Fix NPE in Android{S,N}dkRepositoryFunction.
+   + d72bc57b60b26245e64f5ccafe023a5ede81cc7f:
+     Select the good guava jars for JDK7 build
+   + 92ecbaeaf6fa11dff161254df38d743d48be8c61:
+     Windows: Assist JNI builds with a target for jni_md.h.
+   + 36958806f2cd38dc51e64cd7bcc557bd143bbdb6:
+     Add java_common.create_provider to allow creating a
+     java_common.provider
+   + 8c00f398d7be863c4f502bde3f5d282b1e18f504:
+     Improve handling of unknown NDK revisions in
+     android_ndk_repository.
+   + b6ea0d33d3ab72922c8fb3ec1ff0e437af09584d:
+     Add the appropriate cxx_builtin_include_directory entries for
+     clang to the Android NDK crosstool created by
+     android_ndk_repository.
+
+Incompatible changes:
+
+  - Depsets (former sets) are converted to strings as "depset(...)"
+    instead of
+    "set(...)".
+  - Using --symlink_prefix is now applied to the output
+    symlink (e.g. bazel-out) and the exec root symlink (e.g.
+    bazel-workspace).
+  - Bazel now uses the test's PATH for commands specified as
+        --run_under; this can affect users who explicitly set PATH to
+    a more
+        restrictive value than the default, which is to forward the
+    local PATH
+  - It's not allowed anymore to compare objects of different types
+    (i.e. a string to an integer) and objects for which comparison
+    rules are not
+    defined (i.e. a dict to another dict) using order operators.
+
+New features:
+
+  - environ parameter to the repository_rule function let
+    defines a list of environment variables for which a change of
+    value
+    will trigger a repository refetching.
+
+Important changes:
+
+  - android_ndk_repository now supports Android NDK R13.
+  - Android resource shrinking is now available for android_binary
+    rules. To enable, set the attribute 'shrink_resources = 1'. See
+    https://bazel.build/versions/master/docs/be/android.html#android_b
+    inary.shrink_resources.
+  - resolve_command/action's input_manifest return/parameter is now
+    list
+  - For increased compatibility with environments where UTS
+    namespaces are not available, the Linux sandbox no longer hides
+    the hostname of the local machine by default. Use
+    --sandbox_fake_hostname to re-enable this feature.
+  - proto_library: alias libraries produce empty files for descriptor
+    sets.
+  - Adds pkg_rpm rule for generating RPM packages.
+  - Allow CROSSTOOL files to have linker flags specific to static
+    shared libraries.
+  - Make it mandatory for Java test suites in bazel codebase, to
+    contain at least one test.
+  - Support for Java 8 lambdas, method references, type annotations
+    and repeated annotations in Android builds with
+    --experimental_desugar_for_android.
+  - Removed .xcodeproj automatic output from objc rules. It can still
+    be generated by requesting it explicitly on the command line.
+  - Flips --explicit_jre_deps flag on by default.
+  - Activate the "dbg", "fastbuild", and "opt" features in the objc
+    CROSSTOOL.
+  - Remove support for configuring JDKs with filegroups; use
+    java_runtime and java_runtime_suite instead
+  - android_ndk_repository api_level attribute is now optional. If not
+    specified, the highest api level in the ndk/platforms directory
+    is used.
+
+## Build informations
+   - [Build log](http://ci.bazel.io/job/Bazel/JAVA_VERSION=1.8,PLATFORM_NAME=linux-x86_64/1378/)
+   - [Commit](https://github.com/bazelbuild/bazel/commit/037b9b9)
+Uncompressing......Extracting Bazel installation...
+.
+
+Bazel is now installed!
+
+Make sure you have "/home/zhendu/bin" in your path. You can also activate bash
+completion by adding the following line to your :
+  source /home/zhendu/.bazel/bin/bazel-complete.bash
+
+See http://bazel.build/docs/getting-started.html to start a new project!
+zhendu@ubuntu:~/Desktop$ 
+```
+
+安装成功之后我们应该就会在当前用户home文件夹下看见一个bin/bazel
+
+```shell
+zhendu@ubuntu:~/Desktop$ cd ~
+zhendu@ubuntu:~$ ls
+bin      Documents  examples.desktop  Pictures  Templates
+Desktop  Downloads  Music             Public    Videos
+zhendu@ubuntu:~$ cd bin/
+zhendu@ubuntu:~/bin$ ls
+bazel
+zhendu@ubuntu:~/bin$ 
+```
+
+然后我们把这个东西加入环境变量。
+
+此外TensorFlow Serving应该还依赖gRPC，他是一个远程调用协议。我猜测是提供TensorFlow Serving服务器与客户端之间的通信。我们需要安装实现了这个协议的Python包。我打算在整个系统的层面安装这个包，使用pip命令。
+
+```shell
+sudo pip install grpcio
+```
+
+但是安装完之后最大的问题就是竟然一点python运行import的时候找不到这个模块。估计是个隐患。
+
+之后我们就可以安装所有零碎的Linux依赖包了。
+
+现在所有的前期依赖就完成了。
+
+然后我们从github上面克隆TensorFlow Serving的代码。并进行编译安装。在安装之前，我们前往了原码的TensorFlow文件夹，运行里面的config，并且进行TensorFlow的配置，~~我个人觉得可能TensorFlow Serving就包含了TensorFlow，但是TensorFlow不是我们之前安装的那个Python接口模块。~~我现在觉得这个可能只是一个TensorFlow Serving的依赖相关的东西，我们在这个程序中输入了配置，这样子TensorFlow Serving就可以在编译之前确定所有外部依赖，就好像配置结束之后的输出一样。我去除了opencl、llvm（加了之后build就报错）以及CUDA的依赖。试了几种依赖的组合之后我还是确定全部“no”了，然后我们进行完配置工作了。
+
+```shell
+INFO: All external dependencies fetched successfully.
+```
+
+
+
+
+
+
 
 
 
