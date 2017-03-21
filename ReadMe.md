@@ -307,11 +307,15 @@ sudo pip install grpcio
 
 现在所有的前期依赖就完成了。
 
-然后我们从github上面克隆TensorFlow Serving的代码。并进行编译安装。在安装之前，我们前往了原码的TensorFlow文件夹，运行里面的config，并且进行TensorFlow的配置，~~我个人觉得可能TensorFlow Serving就包含了TensorFlow，但是TensorFlow不是我们之前安装的那个Python接口模块。~~我现在觉得这个可能只是一个TensorFlow Serving的依赖相关的东西，我们在这个程序中输入了配置，这样子TensorFlow Serving就可以在编译之前确定所有外部依赖，就好像配置结束之后的输出一样。我去除了opencl、llvm（加了之后build就报错）以及CUDA的依赖。试了几种依赖的组合之后我还是确定全部“no”了，然后我们进行完配置工作了。
+然后我们从github上面克隆TensorFlow Serving的代码。并进行编译安装。在安装之前，我们前往了原码的TensorFlow文件夹，运行里面的config，并且进行TensorFlow的配置，配置结束之后就会进入编译阶段。我们不安装任何依赖，最后的输出是这样的。
 
 ```shell
 INFO: All external dependencies fetched successfully.
 ```
+
+当这一步之后我们就要进行TensorFlow Serving的安装。他依赖于我们上面的TensorFlow。编译完的所有二进制程序会存放在bazel-bin目录下。
+
+
 
 
 
