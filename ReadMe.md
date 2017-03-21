@@ -313,7 +313,21 @@ sudo pip install grpcio
 INFO: All external dependencies fetched successfully.
 ```
 
-当这一步之后我们就要进行TensorFlow Serving的安装。他依赖于我们上面的TensorFlow。编译完的所有二进制程序会存放在bazel-bin目录下。
+当这一步之后我们就要进行TensorFlow Serving的安装。他依赖于我们上面的TensorFlow。编译完的所有二进制程序会存放在bazel-bin目录下。但是无奈啊，总是报这个错。
+
+```shell
+ERROR: /home/zhendu/.cache/bazel/_bazel_zhendu/bd849f9b90e223f76b575a2ac1899a66/external/org_tensorflow/tensorflow/core/kernels/BUILD:2136:1: C++ compilation of rule '@org_tensorflow//tensorflow/core/kernels:matmul_op' failed: gcc failed: error executing command /usr/bin/gcc -U_FORTIFY_SOURCE -fstack-protector -Wall -B/usr/bin -B/usr/bin -Wunused-but-set-parameter -Wno-free-nonheap-object -fno-omit-frame-pointer '-std=c++0x' -MD -MF ... (remaining 93 argument(s) skipped): com.google.devtools.build.lib.shell.BadExitStatusException: Process exited with status 1.
+virtual memory exhausted: Cannot allocate memory
+INFO: Elapsed time: 699.430s, Critical Path: 608.91s
+zhendu@ubuntu:~/serving$ 
+
+```
+
+我们扩大了内存容量，继续执行编译。扩了3次内存，竟然终于可以过了，4核12G。
+
+
+
+当安装完成之后，我们就可以使用MNIST数据集进行一个测试了，MNIST是个手写体图片集，TensorFlow做的工作就是把这个数据集的每一张图片和一个手写的数字对应起来。X是一个图片对应的矩阵，Y是这个图片对应的数字。
 
 
 
