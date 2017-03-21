@@ -325,9 +325,21 @@ zhendu@ubuntu:~/serving$
 
 我们扩大了内存容量，继续执行编译。扩了3次内存，竟然终于可以过了，4核12G。
 
-
+然后我们执行bazel的test命令，通过了，至此安装成功。
 
 当安装完成之后，我们就可以使用MNIST数据集进行一个测试了，MNIST是个手写体图片集，TensorFlow做的工作就是把这个数据集的每一张图片和一个手写的数字对应起来。X是一个图片对应的矩阵，Y是这个图片对应的数字。
+
+### 测试TensorFlow Serving的服务器端
+
+首先我们使用example文件夹里面的程序来生成Model，我们按照教程总是出错。结果我干脆使用pip卸载了TensorFlow。然后安装了0.12版本的Tensorflow，然后编译`//tensorflow_serving/example:mnist_saved_model`编译完之后就终于可以正常运行了。但是运行之后又出错，而且是拒绝访问。
+
+```shell
+IOError: [Errno socket error] [Errno 111] Connection refused
+```
+
+我把VPN关掉再试试。还是拒绝访问，我从谷歌直接搜索要访问的域名，结果发现是这个网站挂了。
+
+
 
 
 
