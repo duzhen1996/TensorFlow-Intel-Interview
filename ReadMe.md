@@ -745,7 +745,16 @@ Model：这是机器学习的学习成果，相当于一个或者多个Servable�
 
 首先我们需要添加Docker的apt仓库。然后更新apt-get的源，然后就可以开始安装了，现在的Docker分为Docker ce与Docker ee，应该前者是社区版，我们下载社区版。
 
-然后我们把TensorFlow的DockerFile下载下来。
+在我们clone的项目中已经自带了Dockerfile。我们使用这个已有的DockerFile创建了镜像。
+
+```shell
+zhendu@ubuntu:~/serving$ sudo docker build --pull -t $USER/tensorflow-serving-devel -f tensorflow_serving/tools/docker/Dockerfile.devel .
+[sudo] password for zhendu: 
+Sending build context to Docker daemon 525.2 MB
+Step 1/13 : FROM ubuntu:14.04
+```
+
+
 
 
 
