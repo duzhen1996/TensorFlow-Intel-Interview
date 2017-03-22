@@ -1,5 +1,7 @@
 # TensorFlow-Intel-Interview
 
+[TOC]
+
 ## 使用TensorFlow来进行二次函数的拟合
 
 为了初步了解TensorFlow的使用我先根据对tensorflow最基本的了解来写一个Demo，进行函数的拟合。然后再去看看Tensorflow Serving的事情。
@@ -339,7 +341,321 @@ IOError: [Errno socket error] [Errno 111] Connection refused
 
 我把VPN关掉再试试。还是拒绝访问，我从谷歌直接搜索要访问的域名，结果发现是这个网站挂了。
 
+我们使用其他网站。下载成功并且可以使用了。并且我们在这里看到了训练的成果。
 
+```shel
+zhendu@ubuntu:~/serving$ cd /tmp/mnist_model/
+zhendu@ubuntu:/tmp/mnist_model$ ls
+1
+zhendu@ubuntu:/tmp/mnist_model$ cd 1
+zhendu@ubuntu:/tmp/mnist_model/1$ ls
+saved_model.pb  variables
+```
+
+下面我们编译了服务器。在开启服务器时，设定模型的基础目录为/tmp/mnist_model，端口为9000。打开之后这个终端就会被暂时占用。
+
+```shell
+zhendu@ubuntu:~/serving$ bazel build //tensorflow_serving/model_servers:tensorflow_model_server
+WARNING: /home/zhendu/.cache/bazel/_bazel_zhendu/bd849f9b90e223f76b575a2ac1899a66/external/org_tensorflow/tensorflow/workspace.bzl:72:5: tf_repo_name was specified to tf_workspace but is no longer used and will be removed in the future.
+WARNING: /home/zhendu/serving/tensorflow_serving/servables/tensorflow/BUILD:561:1: in cc_library rule //tensorflow_serving/servables/tensorflow:regressor: target '//tensorflow_serving/servables/tensorflow:regressor' depends on deprecated target '@org_tensorflow//tensorflow/contrib/session_bundle:session_bundle': Use SavedModel Loader instead.
+WARNING: /home/zhendu/serving/tensorflow_serving/servables/tensorflow/BUILD:561:1: in cc_library rule //tensorflow_serving/servables/tensorflow:regressor: target '//tensorflow_serving/servables/tensorflow:regressor' depends on deprecated target '@org_tensorflow//tensorflow/contrib/session_bundle:signature': Use SavedModel instead.
+WARNING: /home/zhendu/serving/tensorflow_serving/servables/tensorflow/BUILD:523:1: in cc_library rule //tensorflow_serving/servables/tensorflow:classification_service: target '//tensorflow_serving/servables/tensorflow:classification_service' depends on deprecated target '@org_tensorflow//tensorflow/contrib/session_bundle:session_bundle': Use SavedModel Loader instead.
+WARNING: /home/zhendu/serving/tensorflow_serving/servables/tensorflow/BUILD:419:1: in cc_library rule //tensorflow_serving/servables/tensorflow:get_model_metadata_impl: target '//tensorflow_serving/servables/tensorflow:get_model_metadata_impl' depends on deprecated target '@org_tensorflow//tensorflow/contrib/session_bundle:session_bundle': Use SavedModel Loader instead.
+WARNING: /home/zhendu/serving/tensorflow_serving/servables/tensorflow/BUILD:214:1: in cc_library rule //tensorflow_serving/servables/tensorflow:session_bundle_source_adapter: target '//tensorflow_serving/servables/tensorflow:session_bundle_source_adapter' depends on deprecated target '@org_tensorflow//tensorflow/contrib/session_bundle:session_bundle': Use SavedModel Loader instead.
+WARNING: /home/zhendu/serving/tensorflow_serving/servables/tensorflow/BUILD:123:1: in cc_library rule //tensorflow_serving/servables/tensorflow:session_bundle_factory: target '//tensorflow_serving/servables/tensorflow:session_bundle_factory' depends on deprecated target '@org_tensorflow//tensorflow/contrib/session_bundle:session_bundle': Use SavedModel Loader instead.
+WARNING: /home/zhendu/serving/tensorflow_serving/servables/tensorflow/BUILD:498:1: in cc_library rule //tensorflow_serving/servables/tensorflow:classifier: target '//tensorflow_serving/servables/tensorflow:classifier' depends on deprecated target '@org_tensorflow//tensorflow/contrib/session_bundle:session_bundle': Use SavedModel Loader instead.
+WARNING: /home/zhendu/serving/tensorflow_serving/servables/tensorflow/BUILD:498:1: in cc_library rule //tensorflow_serving/servables/tensorflow:classifier: target '//tensorflow_serving/servables/tensorflow:classifier' depends on deprecated target '@org_tensorflow//tensorflow/contrib/session_bundle:signature': Use SavedModel instead.
+WARNING: /home/zhendu/serving/tensorflow_serving/servables/tensorflow/BUILD:523:1: in cc_library rule //tensorflow_serving/servables/tensorflow:classification_service: target '//tensorflow_serving/servables/tensorflow:classification_service' depends on deprecated target '@org_tensorflow//tensorflow/contrib/session_bundle:signature': Use SavedModel instead.
+WARNING: /home/zhendu/serving/tensorflow_serving/servables/tensorflow/BUILD:399:1: in cc_library rule //tensorflow_serving/servables/tensorflow:predict_impl: target '//tensorflow_serving/servables/tensorflow:predict_impl' depends on deprecated target '@org_tensorflow//tensorflow/contrib/session_bundle:session_bundle': Use SavedModel Loader instead.
+WARNING: /home/zhendu/serving/tensorflow_serving/servables/tensorflow/BUILD:399:1: in cc_library rule //tensorflow_serving/servables/tensorflow:predict_impl: target '//tensorflow_serving/servables/tensorflow:predict_impl' depends on deprecated target '@org_tensorflow//tensorflow/contrib/session_bundle:signature': Use SavedModel instead.
+WARNING: /home/zhendu/serving/tensorflow_serving/servables/tensorflow/BUILD:542:1: in cc_library rule //tensorflow_serving/servables/tensorflow:regression_service: target '//tensorflow_serving/servables/tensorflow:regression_service' depends on deprecated target '@org_tensorflow//tensorflow/contrib/session_bundle:session_bundle': Use SavedModel Loader instead.
+WARNING: /home/zhendu/serving/tensorflow_serving/servables/tensorflow/BUILD:542:1: in cc_library rule //tensorflow_serving/servables/tensorflow:regression_service: target '//tensorflow_serving/servables/tensorflow:regression_service' depends on deprecated target '@org_tensorflow//tensorflow/contrib/session_bundle:signature': Use SavedModel instead.
+INFO: Found 1 target...
+Target //tensorflow_serving/model_servers:tensorflow_model_server up-to-date:
+  bazel-bin/tensorflow_serving/model_servers/tensorflow_model_server
+INFO: Elapsed time: 4.384s, Critical Path: 3.68s
+zhendu@ubuntu:~/serving$ bazel-bin/tensorflow_serving/model_servers/tensorflow_model_server --port=9000 --model_name=mnist --model_base_path=/tmp/mnist_model/
+2017-03-21 08:35:02.963063: I tensorflow_serving/model_servers/main.cc:152] Building single TensorFlow model file config:  model_name: mnist model_base_path: /tmp/mnist_model/ model_version_policy: 0
+2017-03-21 08:35:02.963360: I tensorflow_serving/model_servers/server_core.cc:337] Adding/updating models.
+2017-03-21 08:35:02.963399: I tensorflow_serving/model_servers/server_core.cc:383]  (Re-)adding model: mnist
+2017-03-21 08:35:03.065254: I tensorflow_serving/core/basic_manager.cc:698] Successfully reserved resources to load servable {name: mnist version: 1}
+2017-03-21 08:35:03.065353: I tensorflow_serving/core/loader_harness.cc:66] Approving load for servable version {name: mnist version: 1}
+2017-03-21 08:35:03.065381: I tensorflow_serving/core/loader_harness.cc:74] Loading servable version {name: mnist version: 1}
+2017-03-21 08:35:03.065478: I external/org_tensorflow/tensorflow/contrib/session_bundle/bundle_shim.cc:360] Attempting to load native SavedModelBundle in bundle-shim from: /tmp/mnist_model/1
+2017-03-21 08:35:03.065503: I external/org_tensorflow/tensorflow/cc/saved_model/loader.cc:195] Loading SavedModel from: /tmp/mnist_model/1
+2017-03-21 08:35:03.068896: W external/org_tensorflow/tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use SSE4.1 instructions, but these are available on your machine and could speed up CPU computations.
+2017-03-21 08:35:03.068934: W external/org_tensorflow/tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use SSE4.2 instructions, but these are available on your machine and could speed up CPU computations.
+2017-03-21 08:35:03.068944: W external/org_tensorflow/tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use AVX instructions, but these are available on your machine and could speed up CPU computations.
+2017-03-21 08:35:03.068949: W external/org_tensorflow/tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use AVX2 instructions, but these are available on your machine and could speed up CPU computations.
+2017-03-21 08:35:03.068954: W external/org_tensorflow/tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use FMA instructions, but these are available on your machine and could speed up CPU computations.
+2017-03-21 08:35:03.112036: I external/org_tensorflow/tensorflow/cc/saved_model/loader.cc:114] Restoring SavedModel bundle.
+2017-03-21 08:35:03.119241: I external/org_tensorflow/tensorflow/cc/saved_model/loader.cc:149] Running LegacyInitOp on SavedModel bundle.
+2017-03-21 08:35:03.123085: I external/org_tensorflow/tensorflow/cc/saved_model/loader.cc:239] Loading SavedModel: success. Took 57580 microseconds.
+2017-03-21 08:35:03.123167: I tensorflow_serving/core/loader_harness.cc:86] Successfully loaded servable version {name: mnist version: 1}
+2017-03-21 08:35:03.135204: I tensorflow_serving/model_servers/main.cc:272] Running ModelServer at 0.0.0.0:9000 ...
+
+```
+
+然后我们编译执行客户端。并让这个客户端发送1000个样本去让服务器中的model判断，并且客户端会判断服务器说的对不对。给出一个正确率。我们看到正确率是10.4%。
+
+```shell
+zhendu@ubuntu:~/serving$ bazel build //tensorflow_serving/example:mnist_client
+WARNING: /home/zhendu/.cache/bazel/_bazel_zhendu/bd849f9b90e223f76b575a2ac1899a66/external/org_tensorflow/tensorflow/workspace.bzl:72:5: tf_repo_name was specified to tf_workspace but is no longer used and will be removed in the future.
+WARNING: /home/zhendu/.cache/bazel/_bazel_zhendu/bd849f9b90e223f76b575a2ac1899a66/external/org_tensorflow/tensorflow/contrib/learn/BUILD:15:1: in py_library rule @org_tensorflow//tensorflow/contrib/learn:learn: target '@org_tensorflow//tensorflow/contrib/learn:learn' depends on deprecated target '@org_tensorflow//tensorflow/contrib/session_bundle:exporter': Use SavedModel Builder instead.
+WARNING: /home/zhendu/.cache/bazel/_bazel_zhendu/bd849f9b90e223f76b575a2ac1899a66/external/org_tensorflow/tensorflow/contrib/learn/BUILD:15:1: in py_library rule @org_tensorflow//tensorflow/contrib/learn:learn: target '@org_tensorflow//tensorflow/contrib/learn:learn' depends on deprecated target '@org_tensorflow//tensorflow/contrib/session_bundle:gc': Use SavedModel instead.
+INFO: Found 1 target...
+Target //tensorflow_serving/example:mnist_client up-to-date:
+  bazel-bin/tensorflow_serving/example/mnist_client
+INFO: Elapsed time: 0.337s, Critical Path: 0.01s
+zhendu@ubuntu:~/serving$ bazel-bin/tensorflow_serving/example/mnist_client --num_tests=1000 --server=localhost:9000
+in main
+Extracting /tmp/train-images-idx3-ubyte.gz
+Extracting /tmp/train-labels-idx1-ubyte.gz
+Extracting /tmp/t10k-images-idx3-ubyte.gz
+Extracting /tmp/t10k-labels-idx1-ubyte.gz
+..........................................................................................
+Inference error rate: 10.4%
+
+```
+
+这样子整个流程就好了。我们现在尝试自己去搭建一个客户端
+
+## Client的编写
+
+为了可以自己写Client，我们需要了解两个东西，一个是模型是怎么建的，还有一个是客户端是怎么写的，我想达到的效果是根据已有的mnist Model，我们写一个客户端，这个客户端可以接收一个图片，完成图片的建模，并且交给服务器端去识别。服务器返回识别之后的值。
+
+### IDX文件解析
+
+为了可以自己建模我们需要知道IDX文件到底里面是什么东西，我觉得应该是一个全是010101010的二进制码，对应的位数有不同的含义。主要包括的应该是图片每一个像素点RGB值的二进制表现。
+
+我没有找到如何将img转化为IDX。但我找到了一段使用PLT和numpy的Python程序来将IDX转化为图片的Python代码。测试完之后还真是有用。
+
+```python
+# encoding: utf-8
+
+import numpy as np
+import struct
+import matplotlib.pyplot as plt
+
+# 训练集文件
+train_images_idx3_ubyte_file = 'train-images-idx3-ubyte'
+# 训练集标签文件
+train_labels_idx1_ubyte_file = 'train-labels-idx1-ubyte'
+
+# 测试集文件
+test_images_idx3_ubyte_file = 't10k-images-idx3-ubyte'
+# 测试集标签文件
+test_labels_idx1_ubyte_file = 't10k-labels-idx1-ubyte'
+
+
+def decode_idx3_ubyte(idx3_ubyte_file):
+    """
+    解析idx3文件的通用函数
+    :param idx3_ubyte_file: idx3文件路径
+    :return: 数据集
+    """
+    # 读取二进制数据
+    bin_data = open(idx3_ubyte_file, 'rb').read()
+
+    # 解析文件头信息，依次为魔数、图片数量、每张图片高、每张图片宽
+    offset = 0
+    fmt_header = '>iiii'
+    magic_number, num_images, num_rows, num_cols = struct.unpack_from(fmt_header, bin_data, offset)
+    print '魔数:%d, 图片数量: %d张, 图片大小: %d*%d' % (magic_number, num_images, num_rows, num_cols)
+
+    # 解析数据集
+    image_size = num_rows * num_cols
+    offset += struct.calcsize(fmt_header)
+    fmt_image = '>' + str(image_size) + 'B'
+    images = np.empty((num_images, num_rows, num_cols))
+    for i in range(num_images):
+        if (i + 1) % 10000 == 0:
+            print '已解析 %d' % (i + 1) + '张'
+        images[i] = np.array(struct.unpack_from(fmt_image, bin_data, offset)).reshape((num_rows, num_cols))
+        offset += struct.calcsize(fmt_image)
+    return images
+
+
+def decode_idx1_ubyte(idx1_ubyte_file):
+    """
+    解析idx1文件的通用函数
+    :param idx1_ubyte_file: idx1文件路径
+    :return: 数据集
+    """
+    # 读取二进制数据
+    bin_data = open(idx1_ubyte_file, 'rb').read()
+
+    # 解析文件头信息，依次为魔数和标签数
+    offset = 0
+    fmt_header = '>ii'
+    magic_number, num_images = struct.unpack_from(fmt_header, bin_data, offset)
+    print '魔数:%d, 图片数量: %d张' % (magic_number, num_images)
+
+    # 解析数据集
+    offset += struct.calcsize(fmt_header)
+    fmt_image = '>B'
+    labels = np.empty(num_images)
+    for i in range(num_images):
+        if (i + 1) % 10000 == 0:
+            print '已解析 %d' % (i + 1) + '张'
+        labels[i] = struct.unpack_from(fmt_image, bin_data, offset)[0]
+        offset += struct.calcsize(fmt_image)
+    return labels
+
+
+def load_train_images(idx_ubyte_file=train_images_idx3_ubyte_file):
+    """
+    TRAINING SET IMAGE FILE (train-images-idx3-ubyte):
+    [offset] [type]          [value]          [description]
+    0000     32 bit integer  0x00000803(2051) magic number
+    0004     32 bit integer  60000            number of images
+    0008     32 bit integer  28               number of rows
+    0012     32 bit integer  28               number of columns
+    0016     unsigned byte   ??               pixel
+    0017     unsigned byte   ??               pixel
+    ........
+    xxxx     unsigned byte   ??               pixel
+    Pixels are organized row-wise. Pixel values are 0 to 255. 0 means background (white), 255 means foreground (black).
+
+    :param idx_ubyte_file: idx文件路径
+    :return: n*row*col维np.array对象，n为图片数量
+    """
+    return decode_idx3_ubyte(idx_ubyte_file)
+
+
+def load_train_labels(idx_ubyte_file=train_labels_idx1_ubyte_file):
+    """
+    TRAINING SET LABEL FILE (train-labels-idx1-ubyte):
+    [offset] [type]          [value]          [description]
+    0000     32 bit integer  0x00000801(2049) magic number (MSB first)
+    0004     32 bit integer  60000            number of items
+    0008     unsigned byte   ??               label
+    0009     unsigned byte   ??               label
+    ........
+    xxxx     unsigned byte   ??               label
+    The labels values are 0 to 9.
+
+    :param idx_ubyte_file: idx文件路径
+    :return: n*1维np.array对象，n为图片数量
+    """
+    return decode_idx1_ubyte(idx_ubyte_file)
+
+
+def load_test_images(idx_ubyte_file=test_images_idx3_ubyte_file):
+    """
+    TEST SET IMAGE FILE (t10k-images-idx3-ubyte):
+    [offset] [type]          [value]          [description]
+    0000     32 bit integer  0x00000803(2051) magic number
+    0004     32 bit integer  10000            number of images
+    0008     32 bit integer  28               number of rows
+    0012     32 bit integer  28               number of columns
+    0016     unsigned byte   ??               pixel
+    0017     unsigned byte   ??               pixel
+    ........
+    xxxx     unsigned byte   ??               pixel
+    Pixels are organized row-wise. Pixel values are 0 to 255. 0 means background (white), 255 means foreground (black).
+
+    :param idx_ubyte_file: idx文件路径
+    :return: n*row*col维np.array对象，n为图片数量
+    """
+    return decode_idx3_ubyte(idx_ubyte_file)
+
+
+def load_test_labels(idx_ubyte_file=test_labels_idx1_ubyte_file):
+    """
+    TEST SET LABEL FILE (t10k-labels-idx1-ubyte):
+    [offset] [type]          [value]          [description]
+    0000     32 bit integer  0x00000801(2049) magic number (MSB first)
+    0004     32 bit integer  10000            number of items
+    0008     unsigned byte   ??               label
+    0009     unsigned byte   ??               label
+    ........
+    xxxx     unsigned byte   ??               label
+    The labels values are 0 to 9.
+
+    :param idx_ubyte_file: idx文件路径
+    :return: n*1维np.array对象，n为图片数量
+    """
+    return decode_idx1_ubyte(idx_ubyte_file)
+
+
+def run():
+    train_images = load_train_images()
+    train_labels = load_train_labels()
+    # test_images = load_test_images()
+    # test_labels = load_test_labels()
+
+    # 查看前十个数据及其标签以读取是否正确
+    for i in range(10):
+        print train_labels[i]
+        plt.imshow(train_images[i], cmap='gray')
+        plt.show()
+    print 'done'
+
+if __name__ == '__main__':
+    run()
+```
+
+然后我又找到了[Python使用struct处理二进制](http://www.cnblogs.com/gala/archive/2011/09/22/2184801.html)这篇文章。然后我打算编写一个代码，这个代码的作用就是编写只有一个数据的数据集然后使用上门这个程序测试一下，看看能不能把相同的图片读出来，以此来验证我建模的正确性。
+
+```python
+# encoding: utf-8
+
+import numpy as np
+import struct
+import ctypes
+import matplotlib.pyplot as plt
+from PIL import Image
+import binascii
+
+
+def ImageToMatrix(filename):
+    # 读取图片
+    im = Image.open(filename)
+    # 显示图片
+#     im.show()
+    width,height = im.size
+    im = im.convert("L")
+    data = im.getdata()
+    data = np.matrix(data,dtype='float')
+    #new_data = np.reshape(data,(width,height))
+    new_data = np.reshape(data,(height,width))
+    return new_data
+#     new_im = Image.fromarray(new_data)
+#     # 显示图片
+#     new_im.show()
+
+if __name__=="__main__":
+    filename = "./figure.png"
+    data = ImageToMatrix(filename)
+    #创建IDX文件
+    offset = 0
+    fmt_header = '>iiii'
+    img_size = 28 * 28
+    fmt_img = '>' + str(img_size) + 'B'
+    # print struct.calcsize(fmt_header)
+    buf = ctypes.create_string_buffer(struct.calcsize(fmt_header)+struct.calcsize(fmt_img))
+
+    #写入描述训练集的第一行
+    struct.pack_into(fmt_header,buf , offset ,2051 , 1 , 28 , 28)
+    #偏移量按字节算
+    offset = offset+struct.calcsize(fmt_header)
+    print offset
+    #然后写入一张图片
+    data = data.reshape(1,img_size)
+    print data
+    #将线性矩阵转化为数组
+    arr = data.getA1()
+
+    struct.pack_into(fmt_img, buf, offset , *arr)
+    # print binascii.hexlify(buf)
+    with open("./my-idx3-ubyte","wb") as f:
+        f.write(buf)
+```
+
+我的输入是一张图片![](https://ww1.sinaimg.cn/large/006tKfTcgy1fdvc6c2gptj300s00sa9t.jpg)
+
+输出是一个IDX文件。现在至少说明我的建模是没有问题的。下面我们客户端的代码，我们需要知道服务器需要什么东西。
 
 
 
