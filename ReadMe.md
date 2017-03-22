@@ -659,7 +659,62 @@ if __name__=="__main__":
 
 ### TensorFlow的客户端代码
 
+经过初步的阅读，我觉得客户端代码里面最重要的是do_inference函数，他负责数据集的发送和结果的接收。
 
+```python
+def do_inference(hostport, work_dir, concurrency, num_tests):
+  """Tests PredictionService with concurrent requests.
+  Args:
+    hostport: Host:port address of the PredictionService.
+    work_dir: The full path of working directory for test data set.
+    concurrency: Maximum number of concurrent requests.
+    num_tests: Number of test images to use.
+  Returns:
+    The classification error rate.
+  Raises:
+    IOError: An error occurred processing test data set.
+  """
+  test_data_set = mnist_input_data.read_data_sets(work_dir).test
+  host, port = hostport.split(':')
+  channel = implementations.insecure_channel(host, int(port))
+  stub = prediction_service_pb2.beta_create_PredictionService_stub(channel)
+  result_counter = _ResultCounter(num_tests, concurrency)
+  for _ in range(num_tests):
+    request = predict_pb2.PredictRequest()
+    request.model_spec.name = 'mnist'
+    request.model_spec.signature_name = 'predict_images'
+    image, label = test_data_set.next_batch(1)
+    request.inputs['images'].CopyFrom(
+        tf.contrib.util.make_tensor_proto(image[0], shape=[1, image[0].size]))
+    result_counter.throttle()
+    result_future = stub.Predict.future(request, 5.0)  # 5 seconds
+    result_future.add_done_callback(
+        _create_rpc_callback(label[0], result_counter))
+  return result_counter.get_error_rate()
+```
+
+因为对TensorFlow Serving的api不了解，所以对我来说这就是迷之代码。不过可以看出这个函数主要负责不断发送请求并返回错误率，我觉得错误率的计算函数里面应该可以找到服务器返回的对于手写体数字的预测值。
+
+最后我们定位到了这段代码：
+
+```python
+exception = result_future.exception()
+    if exception:
+      result_counter.inc_error()
+      print(exception)
+    else:
+      sys.stdout.write('.')
+      sys.stdout.flush()
+      response = numpy.array(
+          result_future.result().outputs['scores'].float_val)
+      prediction = numpy.argmax(response)
+      if label != prediction:
+        result_counter.inc_error()
+    result_counter.inc_done()
+    result_counter.dec_active()
+```
+
+这段代码中的我觉得那个prediction就是从服务器返回的手写体预测值，我们加入print语句，看看会出现什么。
 
 
 
