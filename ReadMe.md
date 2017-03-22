@@ -723,7 +723,11 @@ ServerCore在一开始做了这么几件事情：
 
 ### Batching
 
-Batching（批处理）文档给的很不详细。我的猜测就是Batching为TensorFlow搭建在并行计算平台上提供方便。他提供接口，让服务器先接受一大捆数据，然后并行处理，然后返回一大捆数据的这么一种方案。
+有关Batching（批处理）的内容，文档给的很不详细。我的猜测就是Batching为TensorFlow搭建在并行计算平台上提供方便。他提供接口，让服务器先接受一大捆数据，然后并行处理，然后返回一大捆数据的这么一种方案。
+
+### 使用manager提供服务
+
+我们知道，TensorFlow Serving提供Manager这种东西，他是一个Model的管理组件。他提供以下一些特性：
 
 
 
