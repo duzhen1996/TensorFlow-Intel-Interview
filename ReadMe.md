@@ -140,12 +140,6 @@ stepNum = 99990 [ 1.00010967] [ 1.99988365] [ 3.00002098]
 
 而且我们发现16000次左右这个拟合的值就不变化了，我觉得是`tf.train.GradientDescentOptimizer()`形参值还是太大了导致的。
 
-
-
-
-
-
-
 ## 在Linux虚拟机中进行TensorFlow serving的安装
 
 TensorFlow Serving是一个为机器学习模型服务器的开源软件。他应该是一个CS结构的东西，我们可以将一个已经训练好的机器学习模型放到server端，然后提供服务器。在我看来，TensorFlow Serving提供比较好的版本管理。我们可以在同一时间在Server上使用不同的Model，甚至不同版本的相同Model。总之我觉得是一个Model的部署平台。
@@ -728,6 +722,32 @@ ServerCore在一开始做了这么几件事情：
 ### 使用manager提供服务
 
 我们知道，TensorFlow Serving提供Manager这种东西，他是一个Model的管理组件。他提供以下一些特性：
+
+Servable：这是一个黑盒的对象，主要是处理客户端请求的。
+
+Servable version：TensorFlow Serving可以服务器不同版本的Servable对象。
+
+Servable stream：这是一系列不同版本的Servable对象的序列，版本号升序排列。
+
+Model：这是机器学习的学习成果，相当于一个或者多个Servable对象。
+
+
+
+看完之后，一是看得不明不白，二是好像对后面在Kubernetes中没啥软用。
+
+
+
+## 将安装了TensorFlow Serving的容器部署在Kubernetes中
+
+### 安装Docker
+
+这个老生常谈，直接看[Docker文档](https://docs.docker.com/engine/installation/linux/ubuntu/#uninstall-old-versions)。过了1年发现Docker的安装方法又变了。
+
+首先我们需要添加Docker的apt仓库。然后更新apt-get的源，然后就可以开始安装了，现在的Docker分为Docker ce与Docker ee，应该前者是社区版，我们下载社区版。
+
+然后我们把TensorFlow的DockerFile下载下来。
+
+
 
 
 
