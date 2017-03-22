@@ -705,7 +705,18 @@ zhendu@ubuntu:~/serving$
 
 我会将Client项目文件夹上传到Github上。
 
+## TensorFlow Serving进阶
 
+如果我们需要使用Kubernetes做负载均衡，根据官方文档，我们需要了解官方文档中的进阶教程。我们之前使用的是一个叫做TensorFlow的基础服务器。这里我们可以知道怎么写一个TensorFlow的标准服务器。
+
+首先我们可以使用`--model_version=`参数导出两个不一样版本的Model。这样子我们就可以在我们之前放Model的文件夹/tmp/model下看到两个文件夹，一个是命名为1，一个是2。
+
+下面分析一下TensorFlow Serving的构建源码。首先是`ServerCore::Create()`这个函数。他负责初始化一个ServerCore，他是TensorFlow的核心。我们通过设定这个函数的第一个形参，ServerCore::Options，可以设定我们的Model加载办法。这个ServerCore::Options作为一个结构体包含一系列内容，比如，既可以设定开始就加载一个静态的Model列表，也可以先加载一个在运行过程中会不断变化和升级的动态Model列表，等等。
+
+ServerCore在一开始做了这么几件事情：
+
+- 实例化FileSystemStoragePathSource，这个东西监管model导出的目录。这个目录在model_config_list这个配置文件中声明。
+- 使用PlatformConfigMap实例化SourceAdapter，并且让SourceAdapter和FileSystemStoragePathSource进行连接。PlatformConfigMap是一个键值对，注册了Model的生成所使用的平台，
 
 
 
