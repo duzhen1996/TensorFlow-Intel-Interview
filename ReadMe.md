@@ -967,22 +967,25 @@ def run(dataset_dir):
     
 #训练集创建核心函数---Begin
 #三个形参分别是存放训练集的文件、TFRecord书写对象、以及偏移量
-#因为我们应该一开始就是
+#因为我们应该是读同一个序列化的文件，offset保存了我们上一个训练集文件取到的位置
       offset = _add_to_tfrecord(filename, tfrecord_writer, offset)
 #训练集创建核心函数---End
 
 #创建训练集---End
 
+#创建测试集---Start
+#测试集只有一个
   with tf.python_io.TFRecordWriter(testing_filename) as tfrecord_writer:
     filename = os.path.join(dataset_dir,
                             'cifar-10-batches-py',
                             'test_batch')
     _add_to_tfrecord(filename, tfrecord_writer)
-
-  # Finally, write the labels file:
+#创建测试集---End
+#创建Label---Begin
+#和我们之前的预估出现了偏差，实际上label是有单独的文件的
   labels_to_class_names = dict(zip(range(len(_CLASS_NAMES)), _CLASS_NAMES))
   dataset_utils.write_label_file(labels_to_class_names, dataset_dir)
-
+#创建Label---End
   _clean_up_temporary_files(dataset_dir)
   print('\nFinished converting the Cifar10 dataset!')
 ```
