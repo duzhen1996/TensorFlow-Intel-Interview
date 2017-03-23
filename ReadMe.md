@@ -905,7 +905,87 @@ model_exporter.export(FLAGS.work_dir,
 
 > For each dataset, we'll need to download the raw data and convert it to TensorFlow's native TFRecord format. Each TFRecord contains a TF-Example protocol buffer. 
 
-他用的是一种TensorFlow的原生数据集格式，每一种格式都包含着TF-Example protocol buffer。TF-Example protocol buffer是一个类似于结构体的东西，里面全是键值对的存在，这些键值对代表了数据集的特性信息，按照我们的理解我们既可以把数据集本身，也可以把数据集的Label放在这个TF-Example protocol buffer里。在TensorFlow中，数据是以行优先的方式录入的。在TF-Example protocol buffer的注释中，他举了一个例子：如果我们要在键值对中放一个M\*N矩阵，那么我们就需要把矩阵拉成一个M\*N的数组来存放。
+他用的是一种TensorFlow的原生记录格式，每一种格式都包含着TF-Example protocol buffer。TF-Example protocol buffer是一个类似于结构体的东西，里面全是键值对的存在，这些键值对代表了数据集的特性信息，按照我们的理解我们既可以把数据集本身，也可以把数据集的Label放在这个TF-Example protocol buffer里。在TensorFlow中，数据是以行优先的方式录入的。在TF-Example protocol buffer的注释中，他举了一个例子：如果我们要在键值对中放一个M\*N矩阵，那么我们就需要把矩阵拉成一个M\*N的数组来存放。
+
+在TF-Slim会有指针指向TFRecord。所以我们先要明白我们下载下来的图像是怎么变成TFRecord的。这个内容文档中没有写，但是`download_and_convert_data.py`是实现了内容的下载与转换的代码。这个文件引入眼帘的就是：
+
+```python
+from datasets import download_and_convert_cifar10
+from datasets import download_and_convert_flowers
+from datasets import download_and_convert_mnist
+```
+
+等于是其实还是调了其他文件。我们去download_and_convert_cifar10.py里面看看。
+
+```python
+_CLASS_NAMES = [
+    'airplane',
+    'automobile',
+    'bird',
+    'cat',
+    'deer',
+    'dog',
+    'frog',
+    'horse',
+    'ship',
+    'truck',
+]
+```
+
+我们可以看到这个数据集一共这么几类东西。
+
+run是这个模块在外部被调用的形式，我们来解析一下，因为这个直接影响到Model的输入：
+
+```python
+def run(dataset_dir):
+  """Runs the download and conversion operation.
+  Args:
+    dataset_dir: The dataset directory where the dataset is stored.
+  """
+#创造存放TFRecord的文件---Begin
+  if not tf.gfile.Exists(dataset_dir):
+    tf.gfile.MakeDirs(dataset_dir)
+
+  training_filename = _get_output_filename(dataset_dir, 'train')
+  testing_filename = _get_output_filename(dataset_dir, 'test')
+
+  if tf.gfile.Exists(training_filename) and tf.gfile.Exists(testing_filename):
+    print('Dataset files already exist. Exiting without re-creating them.')
+    return
+#创造存放TFRecord的文件---End
+#下载文件并解压文件---Begin  
+    dataset_utils.download_and_uncompress_tarball(_DATA_URL, dataset_dir)
+#下载文件并解压文件---End  
+
+#创建训练集---Begin
+  with tf.python_io.TFRecordWriter(training_filename) as tfrecord_writer:
+    offset = 0
+    for i in range(_NUM_TRAIN_FILES):
+      filename = os.path.join(dataset_dir,
+                              'cifar-10-batches-py',
+                              'data_batch_%d' % (i + 1))  # 1-indexed.
+    
+#训练集创建核心函数---Begin
+#三个形参分别是存放训练集的文件、TFRecord书写对象、以及偏移量
+#因为我们应该一开始就是
+      offset = _add_to_tfrecord(filename, tfrecord_writer, offset)
+#训练集创建核心函数---End
+
+#创建训练集---End
+
+  with tf.python_io.TFRecordWriter(testing_filename) as tfrecord_writer:
+    filename = os.path.join(dataset_dir,
+                            'cifar-10-batches-py',
+                            'test_batch')
+    _add_to_tfrecord(filename, tfrecord_writer)
+
+  # Finally, write the labels file:
+  labels_to_class_names = dict(zip(range(len(_CLASS_NAMES)), _CLASS_NAMES))
+  dataset_utils.write_label_file(labels_to_class_names, dataset_dir)
+
+  _clean_up_temporary_files(dataset_dir)
+  print('\nFinished converting the Cifar10 dataset!')
+```
 
 
 
