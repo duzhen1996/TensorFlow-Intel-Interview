@@ -861,11 +861,9 @@ root@0c7e82bd2a23:/serving#
 
 我们根据教程[Ubuntu14.04单机版kubernetes安装指导原理及实践应用](http://www.linuxdown.net/install/soft/2016/0114/4362.html)搭建单机版Kubernetes环境。
 
-首先我们在机子上安装Golang，然后下载Kubernetes的原码进行编译。在一开始的时候就报错。`cannot stat 'build/build-image/Dockerfile': No such file or directory`其实这个DockerFile这个文件是存在的，只是他找的目录错了，build-image是一个同级目录，所以我们需要建立一个软连接，以便安装脚本的继续运行。
+首先我们在机子上安装Golang，然后下载Kubernetes的原码进行编译，编译的过程主要就是执行在build文件夹下的release.sh脚本。在一开始的时候就报错。`cannot stat 'build/build-image/Dockerfile': No such file or directory`其实这个DockerFile这个文件是存在的，只是他找的目录错了，build-image是一个同级目录，所以我们需要建立一个软连接，以便安装脚本的继续运行。
 
-
-
-
+但是编译的最后老是出错，我们首先尝试加大内存看看行不行。加大内存之后编译的时间明显变长。这个世界没有+4G内存解决不了的编译器报错，如果有，那就再加4G。
 
 
 
