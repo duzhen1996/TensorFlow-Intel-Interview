@@ -867,7 +867,7 @@ root@0c7e82bd2a23:/serving#
 
 过了好久，现在的状况是命令行运行在`+++ [0323 04:49:05] Running rsync`CPU占用也几乎没有了，我猜测这应该就是安装好了（其实并没有安装好，命令行又开始动了）。
 
-最后还是报错了，虚拟机的空间不够了。所以我的处理办法是，新开一个空间足够大的虚拟机（[Docker镜像的导出和导入](http://blog.csdn.net/a906998248/article/details/46236687)），然后我们把Docker镜像拷贝过来。打开，这样可以保留今天的成果，也不用承担重新调整磁盘分区的风险。
+最后还是报错了，虚拟机的空间不够了。所以我的处理办法是，新开一个空间足够大的虚拟机（[Docker容器的导出和导入](http://blog.csdn.net/a906998248/article/details/46236687)、[Docker镜像的打包](http://wiselyman.iteye.com/blog/2153202)），然后我们把Docker镜像拷贝过来。打开，这样可以保留今天的成果，也不用承担重新调整磁盘分区的风险。
 
 现在我打算安装etcd，然后解压下好的文件。
 
@@ -877,9 +877,39 @@ wget https://github.com/coreos/etcd/releases/download/v0.4.6/etcd-v0.4.6-linux-a
 
 
 
-## 在TensorFlow Serving上使用im2txt模型
+## 在TensorFlow Serving上使用slim模型
 
-这个场景也是图片，之前Mnist输入也是图片，我觉得建模方式可能会简单一点：）。因为这里im2txt没有自己写客户端，所以通过修改代码的方式已经没有可能性了，我觉得如果要写客户端需要知道3点：1、将Model找到并放在TensorFlow规定的文件夹中；2、找到Model的输入和输出是什么。3、在客户端中使用TensorFlow Serving的接口
+这个场景也是图片，之前Mnist输入也是图片，我觉得建模方式可能会简单一点：）。slim的文档比较全，并且也是走图片处理。我觉得如果要写客户端需要知道3点：1、将Model找到并放在TensorFlow规定的文件夹中；2、找到Model的输入和输出是什么。3、在客户端中使用TensorFlow Serving的接口将Model需要的输入给Model，并且从服务器端获取输出。
+
+[slim的文档](https://github.com/tensorflow/models/tree/master/slim)
+
+### Model的输入和输出
+
+我觉得这个是很重要的问题，这个东西应该会在Model导出的时候进行声明。
+
+```python
+model_exporter = exporter.Exporter(saver)
+model_exporter.init(
+    sess.graph.as_graph_def(),
+    named_graph_signatures={
+        'inputs': exporter.generic_signature({'x': x}),
+        'outputs': exporter.generic_signature({'y': y_pred})})
+model_exporter.export(FLAGS.work_dir,         
+                      tf.constant(FLAGS.export_version),
+                      sess)
+```
+
+这个是我在[TensorFlow Serving 尝尝鲜](https://zhuanlan.zhihu.com/p/23361413?refer=bittiger)中找到的一段导出Model的。这里就规定了输入和输出。
+
+通过阅读slim的文档，我发现他规定了输入的格式，这也是为什么我选择slim：）。
+
+> For each dataset, we'll need to download the raw data and convert it to TensorFlow's native TFRecord format. Each TFRecord contains a TF-Example protocol buffer. 
+
+他用的是一种TensorFlow的原生数据集格式，每一种格式都包含着TF-Example protocol buffer。TF-Example protocol buffer是一个类似于结构体的东西，里面全是键值对的存在，这些键值对代表了数据集的特性信息，按照我们的理解我们既可以把数据集本身，也可以把数据集的Label放在这个TF-Example protocol buffer里。在TensorFlow中，数据是以行优先的方式录入的。在TF-Example protocol buffer的注释中，他举了一个例子：如果我们要在键值对中放一个M\*N矩阵，那么我们就需要把矩阵拉成一个M\*N的数组来存放。
+
+
+
+
 
 
 
