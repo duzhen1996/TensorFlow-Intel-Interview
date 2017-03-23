@@ -354,7 +354,6 @@ zhendu@ubuntu:~/serving$ bazel build //tensorflow_serving/model_servers:tensorfl
 2017-03-21 08:35:03.123085: I external/org_tensorflow/tensorflow/cc/saved_model/loader.cc:239] Loading SavedModel: success. Took 57580 microseconds.
 2017-03-21 08:35:03.123167: I tensorflow_serving/core/loader_harness.cc:86] Successfully loaded servable version {name: mnist version: 1}
 2017-03-21 08:35:03.135204: I tensorflow_serving/model_servers/main.cc:272] Running ModelServer at 0.0.0.0:9000 ...
-
 ```
 
 然后我们编译执行客户端。并让这个客户端发送1000个样本去让服务器中的model判断，并且客户端会判断服务器说的对不对。给出一个错误率。我们看到错误率是10.4%。
@@ -739,7 +738,7 @@ Model：这是机器学习的学习成果，相当于一个或者多个Servable�
 
 ## 将安装了TensorFlow Serving的容器部署在Kubernetes中
 
-### 安装Docker
+### 安装Docker与Docker中的TensorFlow Serving
 
 这个老生常谈，直接看[Docker文档](https://docs.docker.com/engine/installation/linux/ubuntu/#uninstall-old-versions)。过了1年发现Docker的安装方法又变了。
 
@@ -753,6 +752,124 @@ zhendu@ubuntu:~/serving$ sudo docker build --pull -t $USER/tensorflow-serving-de
 Sending build context to Docker daemon 525.2 MB
 Step 1/13 : FROM ubuntu:14.04
 ```
+
+然后我们就进行和在虚拟机中安装TensorFlow Serving一样的步骤，将TensorFlow Serving安装在Docker中。我预感又会出现爆内存的问题，我打算使用4核12G的内存分配。
+
+安装完TensorFlow Serving之后，我们开启了Server：
+
+```shell
+root@41f4e247a169:/serving# bazel-bin/tensorflow_serving/model_servers/tensorflow_model_server
+```
+
+教程中的代码是这样的，但是没有任何的Model导出路径和端口，端口应该是有缺省的，但是Model的存放路径我觉得还是需要设定一下。我觉得还是应该设定一下。这个留在稍后再看。
+
+现在回到导入Model的事情，在给TensorFlow Server导Model的时候出错了`Can't import inception_model`，我们在Issue中找到了事情的原因和解决办法。[Can't import inception_model](https://github.com/tensorflow/serving/issues/354)，应该就是类似于Mnist数据集的IDX文件不存在，我们需要从TensorFlow Model的github上直接下载。然后使用软连接或者拷贝的方式把数据集放到对应的文件夹下。
+
+在Docker Container中安装完环境之后，我们需要把这个container打包成一个新的镜像，方便之后的部署。首先执行Commit命令，这个命令等了很久还没有反应。等了一段时间之后，完成了，我们查看一下现有的镜像：
+
+```shell
+zhendu@ubuntu:~$ sudo docker images
+REPOSITORY                        TAG                 IMAGE ID            CREATED             SIZE
+zhendu/inception_serving          latest              2cb2087eea36        16 seconds ago      6.73 GB
+<none>                            <none>              4c6756edff2c        2 minutes ago       6.73 GB
+zhendu/tensorflow-serving-devel   latest              a802fb23be0b        13 hours ago        1.03 GB
+ubuntu                            14.04               7c09e61e9035        3 weeks ago         188 MB
+```
+
+接下来我们测试一下这个镜像。我们打开这个镜像之后让其中的TensorFlow Serving进行一次图像的分类。我们打开这个镜像并开启TensorFlow Serving的服务器端：
+
+```shell
+zhendu@ubuntu:~$ sudo docker run -it $USER/inception_serving
+root@0c7e82bd2a23:/# cd serving/
+root@0c7e82bd2a23:/serving# bazel-bin/tensorflow_serving/model_servers/tensorflow_model_server --port=9000 --model_name=inception --model_base_path=inception-export &> inception_log &
+[1] 14
+root@0c7e82bd2a23:/serving# 
+```
+
+我们创建客户端。整个软件的流程应该是客户端发送一只猫的图片给服务器端，服务器返回一个Json来描述这只猫的信息。但是好像现在还没有图片，我去找只猫的图片试试。
+
+![](https://ww1.sinaimg.cn/large/006tKfTcgy1fdwsoiq68qj303d03d3ya.jpg)
+
+我们使用docker cp命令把一个图片拷贝到容器中：
+
+```shell
+zhendu@ubuntu:~$ sudo docker cp /home/zhendu/Desktop/bigcat.jpeg 0c7e82bd2a23:/
+zhendu@ubuntu:~$ 
+```
+
+在容器中我们看到了这张图片：
+
+```shell
+root@0c7e82bd2a23:/serving# cd /
+root@0c7e82bd2a23:/# ls
+bazel        bin   dev  home  lib64  mnt     opt   root  sbin     srv  tmp  var
+bigcat.jpeg  boot  etc  lib   media  models  proc  run   serving  sys  usr
+root@0c7e82bd2a23:/# 
+```
+
+然后我们将这只猫传给服务器进行识别：
+
+```shell
+root@0c7e82bd2a23:/serving# bazel-bin/tensorflow_serving/example/inception_client --server=localhost:9000 --image=/bigcat.jpeg
+D0323 07:23:15.457716614     814 ev_posix.c:101]             Using polling engine: poll
+outputs {
+  key: "classes"
+  value {
+    dtype: DT_STRING
+    tensor_shape {
+      dim {
+        size: 1
+      }
+      dim {
+        size: 5
+      }
+    }
+    string_val: "Persian cat"
+    string_val: "Japanese spaniel"
+    string_val: "Angora, Angora rabbit"
+    string_val: "titi, titi monkey"
+    string_val: "marmoset"
+  }
+}
+outputs {
+  key: "scores"
+  value {
+    dtype: DT_FLOAT
+    tensor_shape {
+      dim {
+        size: 1
+      }
+      dim {
+        size: 5
+      }
+    }
+    float_val: 8.54975223541
+    float_val: 2.50879764557
+    float_val: 2.4423801899
+    float_val: 2.21044707298
+    float_val: 1.93949532509
+  }
+}
+
+E0323 07:23:18.276729296     814 chttp2_transport.c:1810]    close_transport: {"created":"@1490253798.276704125","description":"FD shutdown","file":"src/core/lib/iomgr/ev_poll_posix.c","file_line":427}
+root@0c7e82bd2a23:/serving# 
+```
+
+通过`string_val: "Persian cat"`我们可以看到他真的是波斯猫。看来这个容器的运行已经没有任何问题了。
+
+### 安装Kubernetes
+
+我们根据教程[Ubuntu14.04单机版kubernetes安装指导原理及实践应用](http://www.linuxdown.net/install/soft/2016/0114/4362.html)搭建单机版Kubernetes环境。
+
+首先我们在机子上安装Golang，然后下载Kubernetes的原码进行编译。在一开始的时候就报错。`cannot stat 'build/build-image/Dockerfile': No such file or directory`其实这个DockerFile这个文件是存在的，只是他找的目录错了，build-image是一个同级目录，所以我们需要建立一个软连接，以便安装脚本的继续运行。
+
+
+
+
+
+
+
+
 
 
 
