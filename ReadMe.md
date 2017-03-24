@@ -877,13 +877,137 @@ dial tcp 127.0.0.1:33819: getsockopt: connection refused
 
 我觉得问题还是比较复杂的，我觉得可能要使用Kubernetes文档里面给的集成化+虚拟机的解决方案了。
 
-
-
-现在我打算安装etcd，然后解压下好的文件。
+Kubernetes官方提供一个单节点的安装方案，即[Minikube](https://kubernetes.io/docs/getting-started-guides/minikube/)。首先我们安装VirtualBox。
 
 ```shell
-wget https://github.com/coreos/etcd/releases/download/v0.4.6/etcd-v0.4.6-linux-amd64.tar.gz
+zhendu@ubuntu:~$ VBoxManage --version
+5.1.18r114002
+zhendu@ubuntu:~$ 
 ```
+
+然后我们下载Minikube的可执行文件，将其设定为可执行，将其移动到/usr/local/bin下方便直接在命令行中执行：
+
+```shell
+zhendu@ubuntu:~$ curl -Lo minikube https://storage.googleapis.com/minikube/releases/v0.17.1/minikube-linux-amd64 && chmod +x minikube && sudo mv minikube /usr/local/bin/
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+ 12 83.3M   12 10.1M    0     0  1078k      0  0:01:19  0:00:09  0:01:10 1798k
+```
+
+minikube安装完成之后我们可以查看到他的版本号：
+
+```shell
+zhendu@ubuntu:~$ minikube version
+========================================
+kubectl could not be found on your path.  kubectl is a requirement for using minikube
+To install kubectl, please run the following:
+
+curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/v1.5.3/bin/linux/amd64/kubectl && chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+
+To disable this message, run the following:
+
+minikube config set WantKubectlDownloadMsg false
+========================================
+minikube version: v0.17.1
+zhendu@ubuntu:~$ 
+```
+
+接下来安装[kuberectl](https://kubernetes.io/docs/tasks/kubectl/install/)。也是下载，给予使用权限，然后放到/usr/local/bin文件夹下：
+
+```shell
+zhendu@ubuntu:~$ curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100 48.0M  100 48.0M    0     0  1328k      0  0:00:37  0:00:37 --:--:-- 1405k
+zhendu@ubuntu:~$ sudo chmod +x ./kubectl
+zhendu@ubuntu:~$ sudo mv ./kubectl /usr/local/bin/kubectl
+zhendu@ubuntu:~$ 
+```
+
+输入`minikube start`来开启minikube。然后又报错：
+
+```shell
+E0323 22:57:10.841959    4506 start.go:119] Error starting host:  Error starting stopped host: Error setting up host only network on machine start: The host-only adapter we just created is not visible. This is a well known VirtualBox bug. You might want to uninstall it and reinstall at least version 5.0.12 that is is supposed to fix this issue
+```
+
+我觉得是版本的问题，我安装5.0.12版本试试，并且使用命令行的apt-get的方式安装。
+
+之后，我通过apt-get的方式下载了低版本的VirtualBox。
+
+```shell
+zhendu@ubuntu:~$ VBoxManage --version
+5.0.36r114008
+zhendu@ubuntu:~$ 
+```
+
+然后就开启成功了，hhhhhhhh。
+
+```shell
+zhendu@ubuntu:~$ minikube start
+========================================
+kubectl could not be found on your path.  kubectl is a requirement for using minikube
+To install kubectl, please run the following:
+
+curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/v1.5.3/bin/linux/amd64/kubectl && chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+
+To disable this message, run the following:
+
+minikube config set WantKubectlDownloadMsg false
+========================================
+Starting local Kubernetes cluster...
+Starting VM...
+Downloading Minikube ISO
+ 89.24 MB / 89.24 MB [==============================================] 100.00% 0s
+SSH-ing files into VM...
+Setting up certs...
+Starting cluster components...
+Connecting to cluster...
+Setting up kubeconfig...
+Kubectl is now configured to use the cluster.
+zhendu@ubuntu:~$ 
+```
+
+之后我们便可以使用kubectl来进行Kubernetes的控制了。但是实际上因为minikube作为一个服务器需要客户端做一个认证，我们所有的操作都是会报错的：
+
+```shell
+zhendu@ubuntu:~$ kubectl get pods --all-namespaces
+error: You must be logged in to the server (the server has asked for the client to provide credentials)
+```
+
+我觉得原因是我在没有安装kubectl的情况下就开启了minikube。我先在重启minikube，然后工作开始正常了。问题顺利解决。
+
+下面我们把容器部署在Kubernetes中。首先我们输入minikube ssh，进到minikube所在的虚拟机中，我们发现这个虚拟机中附带了Docker，所以我们需要做的就是把我们之前导出的镜像放在这个Docker中，并且将其作为容器开启就完成了。我先在非常担心的是那个Virtualbox虚拟机存储空间给少了，为了保证这个容器可以运行，至少需要12GB的虚拟机磁盘空间才可以。
+
+然后我打算使用scp命令将之前打包的镜像放到Kubernetes所在的VirtualBox中。我们将宿主机的家文件夹的权限设为777.然后在Virtualbox中使用Docker用户的scp命令将打包的镜像从宿主机传到VirtualBox中。但是老是传输中断。心累。
+
+又想到一个办法，VirtualBox应该是提供共享文件夹功能的，果然，在根目录下有一个hosthome文件夹，我们从那个文件夹里面拿看看行不行。执行命令：
+
+```shell
+$ docker load < /hosthome/zhendu/Desktop/inception_serving.tar
+```
+
+但是执行了一半又会Killed掉。然后Virtual Box也突然挂掉了。我觉得可能有两个原因，一个是磁盘空间不足，还有一个是内存空间不足，我们加大内存空间试试（原因：[linux下程序被Killed](http://blog.csdn.net/feiniao8651/article/details/52186268)）。加了内存之后容器被成功导入到了Kubernetes所在的服务器上：
+
+```shell
+$ docker images
+REPOSITORY                                            TAG                 IMAGE ID            CREATED             SIZE
+zhendu/inception_serving                              latest              2cb2087eea36        26 hours ago        6.724 GB
+gcr.io/google-containers/kube-addon-manager           v6.3                79eb64bc98df        8 weeks ago         67 MB
+gcr.io/google_containers/kubernetes-dashboard-amd64   v1.5.1              1180413103fd        10 weeks ago        103.6 MB
+gcr.io/google_containers/kubedns-amd64                1.9                 26cf1ed9b144        4 months ago        47 MB
+gcr.io/google_containers/kube-dnsmasq-amd64           1.4                 3ec65756a89b        5 months ago        5.126 MB
+gcr.io/google_containers/exechealthz-amd64            1.2                 93a43bfb39bf        6 months ago        8.375 MB
+gcr.io/google_containers/pause-amd64                  3.0                 99e59f495ffa        10 months ago       746.9 kB
+```
+
+然后我们使用一个pod来打开这个容器并创建一个服务。我们的任务就完成了。
+
+```shell
+zhendu@ubuntu:~$ kubectl run myinception --image=zhendu/inception_serving
+deployment "myinception" created
+```
+
+
 
 
 
@@ -994,7 +1118,7 @@ def run(dataset_dir):
 #创建Label---Begin
 #和我们之前的预估出现了偏差，实际上label是有单独的文件的
 #Label是一个数字，这里表达了数字和具体ClASS之间的对应关系
-#1对应airplane、2对应automobile……。其实这不就是一个枚举吗
+#0对应airplane、1对应automobile……。其实这不就是一个枚举吗
   labels_to_class_names = dict(zip(range(len(_CLASS_NAMES)), _CLASS_NAMES))
 #Label集重要函数，这个模块是重中之重，同时也是训练集和测试集的创造者
   dataset_utils.write_label_file(labels_to_class_names, dataset_dir)
@@ -1003,7 +1127,67 @@ def run(dataset_dir):
   print('\nFinished converting the Cifar10 dataset!')
 ```
 
-我们下载了数据集，里面惊喜地附带了一个网页，它深刻讲述了他的二进制的原始数据集是怎么创造的------[Readme](http://www.cs.toronto.edu/~kriz/cifar.html)。
+我们可以看到dataset_utils里面的几个函数是非常重要的。我们之后要看看。
+
+我们下载了数据集，里面惊喜地附带了一个网页，它深刻讲述了他的Python的原始数据集是怎么创造的------[Readme](http://www.cs.toronto.edu/~kriz/cifar.html)。
+
+此外我还在网上找到了Cifar10Python原始数据集转为图片的方法，这有助于我我们理解Pyhton原始数据集的结构。这个输入的难点是，他输出的是彩色图片，所以在我看来他RGB三种颜色是分来保存的，也就是一个图片应该是对应三个矩阵，每一个矩阵的每一个数字的值应该在0-255这个范围。在存储的时候这三个矩阵应该都会让每行头尾相接拉成一条线性矩阵，然后放在原始训练集的data-key后面。下面是将原始Python训练集转为图片的代码：
+
+```python
+# -*- coding:utf-8 -*-
+import pickle as p
+import numpy as np
+import os
+import matplotlib.pyplot as plt
+import matplotlib.image as plimg
+from PIL import Image
+def load_CIFAR_batch(filename):
+    """ load single batch of cifar """
+    with open(filename, 'rb')as f:
+        datadict = p.load(f)
+        print datadict
+        X = datadict['data']
+        Y = datadict['labels']
+        X = X.reshape(10000, 3, 32, 32)
+        Y = np.array(Y)
+        return X, Y
+
+def load_CIFAR_Labels(filename):
+    with open(filename, 'rb') as f:
+        lines = [x for x in f.readlines()]
+        print(lines)
+
+
+if __name__ == "__main__":
+    load_CIFAR_Labels("data/cifar-10-batches-py/batches.meta")
+    imgX, imgY = load_CIFAR_batch("data/cifar-10-batches-py/data_batch_1")
+    print imgX.shape
+    print "正在保存图片:"
+    for i in xrange(imgX.shape[0]):
+        imgs = imgX[i - 1]
+        if i < 1:#只循环1张图片,这句注释掉可以便利出所有的图片,图片较多,可能要一定的时间
+            img0 = imgs[0]
+            img1 = imgs[1]
+            img2 = imgs[2]
+            i0 = Image.fromarray(img0)
+            i1 = Image.fromarray(img1)
+            i2 = Image.fromarray(img2)
+            img = Image.merge("RGB",(i0,i1,i2))
+            name = "img" + str(i)
+
+            img.save("data/images/"+name,"png")#文件夹下是RGB融合后的图像
+            for j in xrange(imgs.shape[0]):
+                img = imgs[j - 1]
+                name = "img" + str(i) + str(j) + ".png"
+                print "正在保存图片" + name
+                plimg.imsave("data/images/" + name, img)#文件夹下是RGB分离的图像
+
+    print "保存完毕."
+```
+
+
+
+
 
 
 
