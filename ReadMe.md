@@ -1000,7 +1000,7 @@ gcr.io/google_containers/exechealthz-amd64            1.2                 93a43b
 gcr.io/google_containers/pause-amd64                  3.0                 99e59f495ffa        10 months ago       746.9 kB
 ```
 
-然后我们使用一个pod来打开这个容器并创建一个服务。我们的任务就完成了。
+然后我们使用一个pod来打开这个容器并创建一个服务。我们的任务就完成了。但是还是无法运行，我们需要创造一个本地仓库。然后从本地仓库中下载镜像使用。主要依据是这篇文章[kubectl get pods - kubectl get pods - STATUS ImagePullBackOff](http://stackoverflow.com/questions/37302776/kubectl-get-pods-kubectl-get-pods-status-imagepullbackoff) 。
 
 ```shell
 zhendu@ubuntu:~$ kubectl run myinception --image=zhendu/inception_serving
@@ -1101,7 +1101,8 @@ def run(dataset_dir):
     
 #训练集创建核心函数---Begin
 #三个形参分别是存放训练集的文件、TFRecord书写对象、以及偏移量
-#因为我们应该是读同一个序列化的文件，offset保存了我们上一个训练集文件取到的位置
+#因为我们应该是要将三个Python原始训练集，合并成一个TFRecord文件，所以我们需要在写入完记录
+#一下这次写了多少，方便下次接着写
       offset = _add_to_tfrecord(filename, tfrecord_writer, offset)
 #训练集创建核心函数---End
 
@@ -1164,7 +1165,7 @@ if __name__ == "__main__":
     print imgX.shape
     print "正在保存图片:"
     for i in xrange(imgX.shape[0]):
-        imgs = imgX[i - 1]
+        imgs = imgX[i]
         if i < 1:#只循环1张图片,这句注释掉可以便利出所有的图片,图片较多,可能要一定的时间
             img0 = imgs[0]
             img1 = imgs[1]
@@ -1185,11 +1186,147 @@ if __name__ == "__main__":
     print "保存完毕."
 ```
 
+首先我们看一下meta元文件，我们首先修改一下`load_CIFAR_Labels`内容。因为写进去的是一个dict，我们unpickle一下，看看到底里面是什么内容。
 
+```python
+def load_CIFAR_Labels(filename):
+    with open(filename, 'rb') as f:
+        # lines = [x for x in f.readlines()]
+        # print(lines)
+        d = Pickle.load(f)
+        print d
+```
 
+```shell
+{'num_cases_per_batch': 10000, 'label_names': ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck'], 'num_vis': 3072}
+```
 
+我们可以看到在元数据中声明了每一个batch的数据集的数量，label_names声明了我们label的几种类型。num_vis是描述一个图片的线性矩阵的大小，3072就是32（长）\*32（宽）\*3（RGB），我们描述一张图片需要3072个范围为[0-255]数字。
 
+然后我们看看训练集，即batch里面的东西。这里面也是dict，我们unpickle里面的内容，发现是两个键，一个是data，一个是labels。label里面的内容就是每一个图片的类型，以及图片的文件名，先是10000个类型，然后是10000个文件名。
 
+大致的内容是这样的：
+
+![](https://ww2.sinaimg.cn/large/006tNbRwgy1fdycj8vuo3j31h605ygnb.jpg)
+
+array是与其说是数组，更是一个矩阵。矩阵的每一行都代表一张图片。总共10000行。这个是初始的。为了把一张图片抠出来，我们可以转化为一个四维数组。现在最内层的二维数组：
+
+```python
+print X[0][0].shape
+(32, 32)
+```
+
+这个是第一张图片的所有R值的32\*32的数组，他和G以及B的32\*32数据，再次组成一个大小为3的数组。这个数组就代表了一张图片。
+
+```python
+print X[0].shape
+(3, 32, 32)
+```
+
+10000个三维数组又构成一个四维数组。这就是这个四维数组的构成。
+
+其实这样就明了了。我们上面这个程序main中的内容以示礼貌。
+
+```python
+if __name__ == "__main__":
+    #这句话和没执行一样
+    load_CIFAR_Labels("data/cifar-10-batches-py/batches.meta")
+    #imgX就是那个四维数组，包含了10000图片的RGB信息。imgY是一个Label信息，对于向图片的转化来说没有用
+    imgX, imgY = load_CIFAR_batch("data/cifar-10-batches-py/data_batch_1")
+    print imgX.shape
+    print "正在保存图片:"
+    #xrange只是一个生成器，节省了内存空间。因为img.shape[0]是最外层数组的大小，也就是10000
+    for i in xrange(imgX.shape[0]):
+        #取出第一张图片
+        imgs = imgX[i]
+        if i < 1:#只循环1张图片,这句注释掉可以便利出所有的图片,图片较多,可能要一定的时间
+            #第一张图片的R值32*32矩阵
+            img0 = imgs[0]
+            #第一张图片的G值32*32矩阵
+            img1 = imgs[1]
+            #第一张图片的B值32*32矩阵
+            img2 = imgs[2]
+            #只有红色系的图片
+            i0 = Image.fromarray(img0)
+            #只有绿色系的图片
+            i1 = Image.fromarray(img1)
+            #只有蓝色系的图片
+            i2 = Image.fromarray(img2)
+            #把三张图片融合
+            img = Image.merge("RGB",(i0,i1,i2))
+            name = "img" + str(i)
+
+            img.save("data/images/"+name,"png")#文件夹下是RGB融合后的图像
+            #这里存一下三种颜色分离的图片
+            for j in xrange(imgs.shape[0]):
+                img = imgs[j - 1]
+                name = "img" + str(i) + str(j) + ".png"
+                print "正在保存图片" + name
+                plimg.imsave("data/images/" + name, img)#文件夹下是RGB分离的图像
+
+    print "保存完毕."
+```
+
+现在Python原始数据集就很清楚了，这个格式和数据集官网上写的是一样的。
+
+我们现在需要知道的是这个RGB的图片是怎么分开的。opencv有这样的接口，cv2.imread，他让图片可以像数组那样去访问每个像素点的内容。比如img[0,0,1]，就是访问图片（0，0）位置的G通道值，也就是绿色的值。借助这个接口，我们就可以很方便的构造出Python原始数据集。
+
+现在我们需要知道这个原始数据集是怎么变成TFRecord的。在slim的数据集生成的过程的核心函数如下：
+
+```python
+def _add_to_tfrecord(filename, tfrecord_writer, offset=0):
+  """Loads data from the cifar10 pickle files and writes files to a TFRecord.
+  Args:
+  	三个参数，第一个是Python原始数据集，就是我们之前讨论的那个原始数据集。
+    filename: The filename of the cifar10 pickle file.
+    这个是一个对象，专门写TFRecord的
+    tfrecord_writer: The TFRecord writer to use for writing.
+    记录上一次写到哪里了
+    offset: An offset into the absolute number of images previously written.
+  Returns:
+    The new offset.
+  """
+  with tf.gfile.Open(filename, 'r') as f:
+    data = cPickle.load(f)
+
+  images = data['data']
+  #10000
+  num_images = images.shape[0]
+  #和转制为图片一样，进行了重构
+  images = images.reshape((num_images, 3, 32, 32))
+  #标签
+  labels = data['labels']
+  #图是TensorFlow一个特别重要的概念，图是由操作Operation和张量Tensor来构成，其中Operation表示图的节点（即计算单元），而Tensor则表示图的边（即Operation之间流动的数据单元）。这也是TensorFlow这个名字的由来
+  with tf.Graph().as_default():
+    #image_placeholder就是传说中的Tensor，但是现在还是空的，我们只是预先申请号空间
+    image_placeholder = tf.placeholder(dtype=tf.uint8)
+    #这里声明我们要把输出换成png编码，这里规定了我们转码输出的格式
+    encoded_image = tf.image.encode_png(image_placeholder)
+	#开启一个sess，在TensorFlow中，一个sess就是一个任务。
+    with tf.Session('') as sess:
+	  #循环10000次，将图片写进去
+      for j in range(num_images):
+        #offset + j + 1当前写到的图片，offset + num_images总共的图片
+        sys.stdout.write('\r>> Reading file [%s] image %d/%d' % (
+            filename, offset + j + 1, offset + num_images))
+        sys.stdout.flush()
+		#np.squeeze，将向量转化为矩阵，而transpose是矩阵的变化的函数
+        #本来是(3，32，32)的，通过这个转置就变成(32，32，3)
+        #这就使得最小的就是
+        image = np.squeeze(images[j]).transpose((1, 2, 0))
+        #标签，我们在训练的时候不仅要给出图片，还要给出这个图片是什么
+        label = labels[j]
+        #这里应该是进行了转码操作，将图片进行编码
+        #这个是输出encoded_image
+        png_string = sess.run(encoded_image,
+                              feed_dict={image_placeholder: image})
+
+        example = dataset_utils.image_to_tfexample(
+            png_string, 'png', _IMAGE_SIZE, _IMAGE_SIZE, label)
+        tfrecord_writer.write(example.SerializeToString())
+
+  return offset + num_images
+```
 
 
 
