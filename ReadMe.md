@@ -869,6 +869,16 @@ root@0c7e82bd2a23:/serving#
 
 最后还是报错了，虚拟机的空间不够了。所以我的处理办法是，新开一个空间足够大的虚拟机（[Docker容器的导出和导入](http://blog.csdn.net/a906998248/article/details/46236687)、[Docker镜像的打包](http://wiselyman.iteye.com/blog/2153202)），然后我们把Docker镜像拷贝过来。打开，这样可以保留今天的成果，也不用承担重新调整磁盘分区的风险。
 
+我们在新的虚拟机中重新进行了编译，编译的整个过程没有什么问题，主要问题出在编译之后的测试上，报了这么一个错：
+
+```shell
+dial tcp 127.0.0.1:33819: getsockopt: connection refused
+```
+
+我觉得问题还是比较复杂的，我觉得可能要使用Kubernetes文档里面给的集成化+虚拟机的解决方案了。
+
+
+
 现在我打算安装etcd，然后解压下好的文件。
 
 ```shell
@@ -983,14 +993,17 @@ def run(dataset_dir):
 #创建测试集---End
 #创建Label---Begin
 #和我们之前的预估出现了偏差，实际上label是有单独的文件的
+#Label是一个数字，这里表达了数字和具体ClASS之间的对应关系
+#1对应airplane、2对应automobile……。其实这不就是一个枚举吗
   labels_to_class_names = dict(zip(range(len(_CLASS_NAMES)), _CLASS_NAMES))
+#Label集重要函数，这个模块是重中之重，同时也是训练集和测试集的创造者
   dataset_utils.write_label_file(labels_to_class_names, dataset_dir)
 #创建Label---End
   _clean_up_temporary_files(dataset_dir)
   print('\nFinished converting the Cifar10 dataset!')
 ```
 
-
+我们下载了数据集，里面惊喜地附带了一个网页，它深刻讲述了他的二进制的原始数据集是怎么创造的------[Readme](http://www.cs.toronto.edu/~kriz/cifar.html)。
 
 
 
