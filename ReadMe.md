@@ -316,7 +316,6 @@ ERROR: /home/zhendu/.cache/bazel/_bazel_zhendu/bd849f9b90e223f76b575a2ac1899a66/
 virtual memory exhausted: Cannot allocate memory
 INFO: Elapsed time: 699.430s, Critical Path: 608.91s
 zhendu@ubuntu:~/serving$ 
-
 ```
 
 我们扩大了内存容量，继续执行编译。扩了3次内存，竟然终于可以过了，4核12G。
@@ -375,7 +374,6 @@ Extracting /tmp/t10k-images-idx3-ubyte.gz
 Extracting /tmp/t10k-labels-idx1-ubyte.gz
 ..........................................................................................
 Inference error rate: 10.4%
-
 ```
 
 这样子整个流程就好了。我们现在尝试自己去搭建一个客户端
@@ -1007,6 +1005,46 @@ zhendu@ubuntu:~$ kubectl run myinception --image=zhendu/inception_serving
 deployment "myinception" created
 ```
 
+首先我们需要自己建一个自己的私有镜像仓库，依据的资料主要是[Private Docker Registry in Kubernetes](https://github.com/kubernetes/kubernetes/tree/master/cluster/addons/registry)。
+
+首先我们先在物理机上创建一个本地仓库，创建本地仓库的方式主要是下载一个仓库镜像，并打开这个容器。Docker仓库本身就是一个Docker容器。我们将镜像传到这个私有仓库中：
+
+```shell
+zhendu@ubuntu:~$ sudo touch /etc/docker/daemon.json
+zhendu@ubuntu:~$ sudo su -
+root@ubuntu:~# echo '{ "insecure-registries":["192.168.99.1:5000"] }'>/etc/docker/daemon.json
+root@ubuntu:~# cat /etc/docker/daemon.json
+{ "insecure-registries":["192.168.99.1:5000"] }
+root@ubuntu:~# systemctl restart docker
+root@ubuntu:~# exit
+logout
+zhendu@ubuntu:~$ sudo docker ps -a
+CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS                      PORTS               NAMES
+2d0c42128f1f        registry            "/entrypoint.sh /e..."   36 minutes ago      Exited (2) 22 seconds ago                       loving_bassi
+zhendu@ubuntu:~$ sudo docker start 2d0c42128f1f2d0c42128f1f
+zhendu@ubuntu:~$ sudo docker push 192.168.99.1:5000/inception
+The push refers to a repository [192.168.99.1:5000/inception]
+4e646e6183f7: Pushed 
+292e8ed69d36: Pushed 
+593a26512fa8: Pushed 
+43883dabc94b: Pushed 
+a71b2aa0731b: Pushed 
+302af2b55afe: Pushed 
+acda6c934fe1: Pushed 
+93067d21bd79: Pushed 
+bd00cdbae641: Pushed 
+af43131c4039: Pushed 
+9bd4c7af882a: Pushed 
+04ab82f865cf: Pushed 
+c29b5eadf94a: Pushed 
+latest: digest: sha256:637b0280e1c919eeeb8867bd50d7654c9d728b6574cacae3bc9ebb73b500467f size: 3049
+zhendu@ubuntu:~$ 
+```
+
+我们做了几件事情，首先是允许Http请求发送和接收（在客户机中设置），然后将镜像上传。
+
+但是我们发现如果想让Kubernetes拉取私有仓库中的镜像，我们还需要为这个仓库设计用户名和密码。[Docker私有仓库使用域名和限制登录](http://www.lining0806.com/docker%e7%a7%81%e6%9c%89%e4%bb%93%e5%ba%93%e4%bd%bf%e7%94%a8%e5%9f%9f%e5%90%8d%e5%92%8c%e9%99%90%e5%88%b6%e7%99%bb%e5%bd%95/)
+
 
 
 
@@ -1298,9 +1336,10 @@ def _add_to_tfrecord(filename, tfrecord_writer, offset=0):
   labels = data['labels']
   #图是TensorFlow一个特别重要的概念，图是由操作Operation和张量Tensor来构成，其中Operation表示图的节点（即计算单元），而Tensor则表示图的边（即Operation之间流动的数据单元）。这也是TensorFlow这个名字的由来
   with tf.Graph().as_default():
-    #image_placeholder就是传说中的Tensor，但是现在还是空的，我们只是预先申请号空间
+    #image_placeholder就是传说中的Tensor，但是现在还是空的，我们只是预先申请号空间，虽然这个预留的
+    #缓冲区只有8位，但是因为我们是一个图片中每一个像素的每一个通道值单独传的，所以够了
     image_placeholder = tf.placeholder(dtype=tf.uint8)
-    #这里声明我们要把输出换成png编码，这里规定了我们转码输出的格式
+    #这里声明我们要将png的图片进行编码，这里规定了我们转码输出的格式
     encoded_image = tf.image.encode_png(image_placeholder)
 	#开启一个sess，在TensorFlow中，一个sess就是一个任务。
     with tf.Session('') as sess:
@@ -1312,37 +1351,113 @@ def _add_to_tfrecord(filename, tfrecord_writer, offset=0):
         sys.stdout.flush()
 		#np.squeeze，将向量转化为矩阵，而transpose是矩阵的变化的函数
         #本来是(3，32，32)的，通过这个转置就变成(32，32，3)
-        #这就使得最小的就是
+        #这就使得每个像素点的RGB值被放在了最内侧数组中
         image = np.squeeze(images[j]).transpose((1, 2, 0))
         #标签，我们在训练的时候不仅要给出图片，还要给出这个图片是什么
         label = labels[j]
         #这里应该是进行了转码操作，将图片进行编码
         #这个是输出encoded_image
+        #feed_dict是一个预留一个tensor空间和一个容器矩阵的键值对
+        #（容器中每一个通道值都可以认为是一个Tensor对象）
+        #encoded_images是输出tensor
+        #输出tensor也会组织在一个同样结构的容器矩阵中，也就是png_string
+        #等于是这个东西
         png_string = sess.run(encoded_image,
                               feed_dict={image_placeholder: image})
-
+		#这里应该就是真正写文件的操作了，之前都是在内存中进行应该是。
         example = dataset_utils.image_to_tfexample(
             png_string, 'png', _IMAGE_SIZE, _IMAGE_SIZE, label)
+        #example是序列化对象，转化为字符串，然后写入文件
         tfrecord_writer.write(example.SerializeToString())
 
   return offset + num_images
 ```
 
+这个函数只是对数据集进行了编码工作，我们现在还需要看一下dataset_utils.image_to_tfexample这里函数里面到底写了什么。我们找到了这个函数的实现：
+
+```python
+def image_to_tfexample(image_data, image_format, height, width, class_id):
+  return tf.train.Example(features=tf.train.Features(feature={
+      'image/encoded': bytes_feature(image_data),
+      'image/format': bytes_feature(image_format),
+      'image/class/label': int64_feature(class_id),
+      'image/height': int64_feature(height),
+      'image/width': int64_feature(width),
+  }))
+```
+
+这里最后一位的class_id就是Label。这样子我们的数据集应该就可以建好了。
+
+现在我们需要一个模型。但是Cifar10并没有现成的模型，没有GPU我们会使用很久，所以我们打算使用ImageNet现成的模型。我们回到那个已经配置好环境的容器。这个容器里面应该是已经包含了ImageNet的模型。我们现在的思路就是借助Flower数据集生成TFRecord的那段代码，原始数据集转化为TFRecord。ImageNet的原始训练集直接就是图片。
+
+我们首先下载CheckPoint文件，这个文件其实并不是真正意义上model文件，所以我们首先要使用：
+
+```python
+/example/inception_saved_model --checkpoint_dir=inception-v3 --output_dir=inception-export
+```
+
+将checkpoint转换成模型。然后开启TensorFlow服务器，我们发现服务器可以正常打开了。
+
+然后就是编写Client的过程了。slim模型的输入直接是一个图像，这是我从网上直接查到的结论，借此我才知道他的输入是图像，我觉得输入是什么应该在Model创建的时候就声明好了，但是看了一下原码发现有太多
+
+于此同时，我还去看了一下.cc文件到底是干嘛用的，我把.cc文件改了一个名（这样子编译器依照BUILD文件的声明应该就找不到他了），然后我们执行客户端的编译工作。首先，我们发现ImageNet客户端的代码很少，但是实际上我们发现编译的时间非常长，完全和mnist训练集的不在一个水平，为什么会这样原因不明。因为电脑虚拟机机能有限，我们不作这个死，太浪费时间。我个人有这么一个猜测，其实我们是可以直接运行py文件的，不见得一定要先编译一下，然后再去运行那个编译之后的可执行文件。我觉得直接运行Client的py文件就是够的。.cc文件只是为了可以生成可执行文件才需要的C语言文件。我们尝试了直接执行py文件之后发现报错了，看来真的不能单独执行。然后我们发现实际虽然mnist和ImageNet是两种客户端，但是他们在编译过程中使用的.cc文件是一致的，所以说我们有理由认为.cc文件就是之后产生可执行文件用的，其实和TensorFlow Serving的客户端没有直接关系。
+
+### TensorFlow Serving客户端编写
+
+然后我们现在可以看一下一个我仿照着写的slim的Client（这个过程我严重依据了Demo）：
+
+```python
+#负责进行C-S通信的包
+from grpc.beta import implementations
+import tensorflow as tf
+
+from tensorflow_serving.apis import predict_pb2
+from tensorflow_serving.apis import prediction_service_pb2
+
+#命令行参数的解析工作，三个参数分别是参数名、缺省值、还有就是这个参数的解释
+tf.app.flags.DEFINE_string('server', 'localhost:9000',
+                           'PredictionService host:port')
+tf.app.flags.DEFINE_string('image', '', 'path to image in JPEG format')
+#将所有的解析参数整理为一个FLAGS对象
+FLAGS = tf.app.flags.FLAGS
 
 
+def main(_):
+  #读出server参数的内容
+  host, port = FLAGS.server.split(':')
+  #使用grpc创立一个通信的通道，实际上就像是一个Socket的创建一样。
+  channel = implementations.insecure_channel(host, int(port))
+  #使用channel的对象初始化，请求的发送者，以及预测者的接受者
+  stub = prediction_service_pb2.beta_create_PredictionService_stub(channel)
+  # Send request。这里打开一个在命令行参数文件中获得的图片
+  with open(FLAGS.image, 'rb') as f:
+    # See prediction_service.proto for gRPC request/response details.
+    #data这对象中存的是图片的二进制表示
+    data = f.read()
+    #创建一个request，也就是我们要发送的请求。
+    request = predict_pb2.PredictRequest()
+    #这里告知服务器我们需要使用哪一个模型去预测
+    request.model_spec.name = 'inception'
+    #这里告知我们输入的是什么，这个东西我不知道具体是干什么用的，
+    #但是这个东西我在ImageNet Model生成的代码里面见过，的确有一个声明为
+    #predict_images的signature_name
+    request.model_spec.signature_name = 'predict_images'
+    #客户端真正的输入，data就是我们刚才那个图片
+    request.inputs['images'].CopyFrom(
+        tf.contrib.util.make_tensor_proto(data, shape=[1]))
+    #想服务器端发送数据并且获取返回值。
+    result = stub.Predict(request, 10.0)  # 10 secs timeout
+    #打印预测结果
+    print(result)
 
 
+if __name__ == '__main__':
+  tf.app.run()
+```
 
-
-
-
-
-
-
-
-
-
-
+> 我一直在想为什么为很难去自己写出一个客户端。我觉得主要是因为我对于Model这个东西的了解太少了，至今我只能看懂并写一些简单的model的生成，比如[TensorFlow Serving 尝尝鲜](http://www.th7.cn/Program/Python/201611/1002772.shtml)所写的东西。还有一个就是对grpc的了解实在是太少了。
+>
+> 不过大致的流程已经会了，对于我来说，只要知道model的输入是什么，我已经可以依照上面这段代码写出一个Client，并且修改BUILD文件并进行编译。
 
 
 
