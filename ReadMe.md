@@ -1461,6 +1461,46 @@ if __name__ == '__main__':
 
 
 
+## Reference
+
+这次实践我查阅了大量资料来完成我的任务。
+
+[TensorFlow Serving Install](https://github.com/tensorflow/serving/blob/master/tensorflow_serving/g3doc/setup.md)
+
+[Python使用struct处理二进制](http://www.cnblogs.com/gala/archive/2011/09/22/2184801.html)
+
+[ubuntu apt-get (You must put some ‘source’ URIs in your sources.list)](https://www.cplusplus.me/2375.html)
+
+[PIP install PIL python2.7 ubuntu 14.04.1](http://stackoverflow.com/questions/28044332/pip-install-pil-python2-7-ubuntu-14-04-1)
+
+[Docker安装文档](https://docs.docker.com/engine/installation/linux/ubuntu/#uninstall-old-versions)
+
+[Solution to:Can't import inception_model](https://github.com/tensorflow/serving/issues/354)
+
+[Ubuntu14.04单机版kubernetes安装指导原理及实践应用](http://www.linuxdown.net/install/soft/2016/0114/4362.html)
+
+[Docker容器的导出和导入](http://blog.csdn.net/a906998248/article/details/46236687)
+
+[Docker镜像的打包](http://wiselyman.iteye.com/blog/2153202)
+
+[Minikube](https://kubernetes.io/docs/getting-started-guides/minikube/)
+
+[kuberectl](https://kubernetes.io/docs/tasks/kubectl/install/)
+
+[linux下程序被Killed](http://blog.csdn.net/feiniao8651/article/details/52186268)
+
+[kubectl get pods - kubectl get pods - STATUS ImagePullBackOff](http://stackoverflow.com/questions/37302776/kubectl-get-pods-kubectl-get-pods-status-imagepullbackoff)
+
+[Private Docker Registry in Kubernetes](https://github.com/kubernetes/kubernetes/tree/master/cluster/addons/registry)
+
+[Docker私有仓库使用域名和限制登录](http://www.lining0806.com/docker%e7%a7%81%e6%9c%89%e4%bb%93%e5%ba%93%e4%bd%bf%e7%94%a8%e5%9f%9f%e5%90%8d%e5%92%8c%e9%99%90%e5%88%b6%e7%99%bb%e5%bd%95/)
+
+[TensorFlow Serving 尝尝鲜](https://zhuanlan.zhihu.com/p/23361413?refer=bittiger)
+
+
+
+
+
 
 
 
